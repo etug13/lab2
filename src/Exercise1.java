@@ -1,4 +1,9 @@
 import org.apache.tika.exception.TikaException;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.sax.PhoneExtractingContentHandler;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
@@ -7,8 +12,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.LinkedList;
@@ -46,19 +49,17 @@ public class Exercise1
 
         ZipFile zipFile = new ZipFile("Exercise1.zip");
         Enumeration entries = zipFile.entries();
-        List<String> numbers = new LinkedList<>();
         while (entries.hasMoreElements()) {
             ZipEntry entry = (ZipEntry) entries.nextElement();
             var parts = entry.getName().split("\\.");
             switch (parts[parts.length - 1]) {
                 case "pdf":
-                    numbers.addAll(parsePDF(zipFile, entry));
+                    results.addAll(parsePDF(zipFile, entry));
                     break;
                 case "xml":
-                    numbers.addAll(parseXML(zipFile, entry));
+                    results.addAll(parseXML(zipFile, entry));
                     break;
             }
-
         }
 
         return results;
@@ -66,12 +67,15 @@ public class Exercise1
 
     private List<String> parsePDF(ZipFile zipFile, ZipEntry entry) {
         List<String> results = new LinkedList<>();
-        try (InputStream inputStream = zipFile.getInputStream(entry)) {
-            Pattern pattern = Pattern.compile("\\([0-9]{3}\\) ?[0-9]+");
-            Matcher matcher = pattern.matcher(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
-            while (matcher.find()) {
+        try (InputStream inputStream = zipFile.getInputStream(entry);
+            PDDocument document = PDDocument.load(inputStream)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            String file = stripper.getText(document);
+
+            Pattern pattern = Pattern.compile("\\([0-9]{3}\\) ?[0-9]+(-[0-9]+)*");
+            Matcher matcher = pattern.matcher(file);
+            while (matcher.find())
                 results.add(matcher.group());
-            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -100,7 +104,9 @@ public class Exercise1
     {
         System.out.println("Running exercise 1b...");
         LinkedList <String> results = new LinkedList <>();
-        // TODO
+        AutoDetectParser parser = new AutoDetectParser();
+        Metadata metadata = new Metadata();
+        PhoneExtractingContentHandler phoneExtractingContentHandler = new PhoneExtractingContentHandler();
 
         return new LinkedList <>(results);
     }
