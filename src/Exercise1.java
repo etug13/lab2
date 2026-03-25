@@ -3,6 +3,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.PhoneExtractingContentHandler;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
@@ -21,31 +22,26 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-public class Exercise1
-{
+public class Exercise1 {
     public static void main(String[] args) throws IOException, ParserConfigurationException,
-            SAXException, TikaException
-    {
+            SAXException, TikaException {
         Exercise1 e1 = new Exercise1();
         e1.run();
     }
 
-    private void run() throws ParserConfigurationException, SAXException, IOException, TikaException
-    {
-        LinkedList <String> phonesByTwoParses = exercise1a();
+    private void run() throws ParserConfigurationException, SAXException, IOException, TikaException {
+        LinkedList<String> phonesByTwoParses = exercise1a();
         System.out.println("Results of the two parses:");
         printResults(phonesByTwoParses);
 
-        LinkedList <String> phonesByTika = exercise1b();
+        LinkedList<String> phonesByTika = exercise1b();
         System.out.println("Results of Tika:");
-        //printResults(phonesByTika);
+        printResults(phonesByTika);
     }
 
-
-    private LinkedList <String> exercise1a() throws IOException, ParserConfigurationException, SAXException
-    {
+    private LinkedList<String> exercise1a() throws IOException, ParserConfigurationException, SAXException {
         System.out.println("Running exercise 1a...");
-        LinkedList <String> results = new LinkedList <>();
+        LinkedList<String> results = new LinkedList<>();
 
         ZipFile zipFile = new ZipFile("Exercise1.zip");
         Enumeration entries = zipFile.entries();
@@ -68,11 +64,11 @@ public class Exercise1
     private List<String> parsePDF(ZipFile zipFile, ZipEntry entry) {
         List<String> results = new LinkedList<>();
         try (InputStream inputStream = zipFile.getInputStream(entry);
-            PDDocument document = PDDocument.load(inputStream)) {
+                PDDocument document = PDDocument.load(inputStream)) {
             PDFTextStripper stripper = new PDFTextStripper();
             String file = stripper.getText(document);
 
-            Pattern pattern = Pattern.compile("\\([0-9]{3}\\) ?[0-9]+(-[0-9]+)*");
+            Pattern pattern = Pattern.compile("(\\([0-9]{3}\\) ?|[0-9]{3} ?)[0-9]{3}[- ]?[0-9]{4}");
             Matcher matcher = pattern.matcher(file);
             while (matcher.find())
                 results.add(matcher.group());
@@ -84,12 +80,12 @@ public class Exercise1
 
     private List<String> parseXML(ZipFile zipFile, ZipEntry entry) {
         List<String> results = new LinkedList<>();
-        try (InputStream inputStream = zipFile.getInputStream(entry)){
+        try (InputStream inputStream = zipFile.getInputStream(entry)) {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             DocumentBuilder db = dbf.newDocumentBuilder();
             Document document = db.parse(inputStream);
             var phones = document.getElementsByTagName("Phone");
-            for (var i = 0; i<phones.getLength(); i++) {
+            for (var i = 0; i < phones.getLength(); i++) {
                 results.add(phones.item(i).getTextContent());
             }
 
@@ -100,23 +96,41 @@ public class Exercise1
 
     }
 
-    private LinkedList <String> exercise1b() throws IOException, TikaException, SAXException
-    {
+    private LinkedList<String> exercise1b() throws IOException, TikaException, SAXException {
         System.out.println("Running exercise 1b...");
-        LinkedList <String> results = new LinkedList <>();
+        LinkedList<String> results = new LinkedList<>();
         AutoDetectParser parser = new AutoDetectParser();
-        Metadata metadata = new Metadata();
-        PhoneExtractingContentHandler phoneExtractingContentHandler = new PhoneExtractingContentHandler();
 
-        return new LinkedList <>(results);
+        ZipFile zipFile = new ZipFile("Exercise1.zip");
+        Enumeration entries = zipFile.entries();
+        while (entries.hasMoreElements()) {
+            ZipEntry entry = (ZipEntry) entries.nextElement();
+            if (entry.isDirectory())
+                continue;
+
+            Metadata metadata = new Metadata();
+            BodyContentHandler handler = new BodyContentHandler();
+            PhoneExtractingContentHandler phoneHandler = new PhoneExtractingContentHandler(handler, metadata);
+
+            try (InputStream inputStream = zipFile.getInputStream(entry)) {
+                parser.parse(inputStream, phoneHandler, metadata);
+                String[] phones = metadata.getValues("phonenumbers");
+                if (phones != null) {
+                    for (String phone : phones) {
+                        results.add(phone);
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore parsing errors for individual files
+            }
+        }
+
+        return results;
     }
 
-
-    private void printResults(LinkedList <String> results)
-    {
-        LinkedList <String> parsedResults = new LinkedList <>();
-        for (String s2 : results)
-        {
+    private void printResults(LinkedList<String> results) {
+        LinkedList<String> parsedResults = new LinkedList<>();
+        for (String s2 : results) {
             String s1 = s2.replace(" ", "");
             s1 = s1.replace("(", "");
             s1 = s1.replace(")", "");
@@ -124,15 +138,17 @@ public class Exercise1
             parsedResults.add(s1);
         }
 
-        LinkedList <String> reference = new LinkedList <>(Arrays.asList(_data));
-        LinkedList <String> incorrectly = new LinkedList <>();
-        LinkedList <String> missed = new LinkedList <>();
+        LinkedList<String> reference = new LinkedList<>(Arrays.asList(_data));
+        LinkedList<String> incorrectly = new LinkedList<>();
+        LinkedList<String> missed = new LinkedList<>();
 
         System.out.println("- detected phone numbers = " + parsedResults.size());
         int t = 0;
         for (String s1 : parsedResults)
-            if (reference.contains(s1)) t++;
-            else incorrectly.add(s1);
+            if (reference.contains(s1))
+                t++;
+            else
+                incorrectly.add(s1);
 
         for (String s1 : reference)
             if (!parsedResults.contains(s1))
@@ -148,47 +164,46 @@ public class Exercise1
 
     }
 
-    private String _data[] =
-            {
-                    "7256915622",
-                    "4289519018",
-                    "9402503286",
-                    "7785524197",
-                    "2041812298",
-                    "8142693192",
-                    "8726549759",
-                    "6615468662",
-                    "2048492437",
-                    "2922715420",
-                    "6427002319",
-                    "5415207134",
-                    "4114517460",
-                    "4196534921",
-                    "9154153005",
-                    "8666147732",
-                    "9237188291",
-                    "5603491440",
-                    "9571159173",
-                    "5482570883",
-                    "3509228486",
-                    "6478692640",
-                    "1235045237",
-                    "7683331038",
-                    "4451512278",
-                    "3168666968",
-                    "6683602279",
-                    "4155419711",
-                    "2355926980",
-                    "9278612234",
-                    "6732151992",
-                    "1297121453",
-                    "9945831692",
-                    "1074548772",
-                    "2742648914",
-                    "2116605343",
-                    "6948486721",
-                    "8692859252",
-                    "1126740391",
-                    "1765449317",
-                    };
+    private String _data[] = {
+            "7256915622",
+            "4289519018",
+            "9402503286",
+            "7785524197",
+            "2041812298",
+            "8142693192",
+            "8726549759",
+            "6615468662",
+            "2048492437",
+            "2922715420",
+            "6427002319",
+            "5415207134",
+            "4114517460",
+            "4196534921",
+            "9154153005",
+            "8666147732",
+            "9237188291",
+            "5603491440",
+            "9571159173",
+            "5482570883",
+            "3509228486",
+            "6478692640",
+            "1235045237",
+            "7683331038",
+            "4451512278",
+            "3168666968",
+            "6683602279",
+            "4155419711",
+            "2355926980",
+            "9278612234",
+            "6732151992",
+            "1297121453",
+            "9945831692",
+            "1074548772",
+            "2742648914",
+            "2116605343",
+            "6948486721",
+            "8692859252",
+            "1126740391",
+            "1765449317",
+    };
 }
