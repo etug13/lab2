@@ -9,6 +9,10 @@ import java.util.Date;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.langdetect.OptimaizeLangDetector;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.SAXException;
 
 public class Exercise2
@@ -21,7 +25,7 @@ public class Exercise2
     {
         Exercise2 exercise = new Exercise2();
         exercise.run();
-    }z
+    }
 
     private void run()
     {
@@ -49,15 +53,49 @@ public class Exercise2
 
     private void initLangDetector() throws IOException
     {
-        // TODO initialize language detector (langDetector)
+        langDetector = new OptimaizeLangDetector();
     }
 
     private void processFile(File file) throws IOException, SAXException, TikaException
     {
-        // TODO: extract content, metadata and language from given file
-        // call saveResult method to save the data
+        AutoDetectParser parser = new AutoDetectParser();
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Metadata metadata = new Metadata();
+        ParseContext context = new ParseContext();
 
-        saveResult(file.getName(), null, null, null, null, null, null); //TODO: fill with proper values
+        try {
+            parser.parse(Files.newInputStream(file.toPath()), handler, metadata, context);
+        } catch (Exception e) {
+            return;
+        }
+
+        String mimeType = metadata.get(Metadata.CONTENT_TYPE);
+        String creator = metadata.get(Metadata.CREATOR);
+        String creationDateStr = metadata.get(Metadata.CREATION_DATE);
+        String lastModificationStr = metadata.get(Metadata.LAST_MODIFIED);
+
+        Date creationDate = null;
+        Date lastModification = null;
+        if (creationDateStr != null && !creationDateStr.isEmpty())
+            try {
+                creationDate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(creationDateStr);
+            } catch (Exception ignored) {}
+
+
+        if (lastModificationStr != null && !lastModificationStr.isEmpty())
+            try {
+                lastModification = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(lastModificationStr);
+            } catch (Exception ignored) {}
+
+        String content = handler.toString();
+
+        String language = null;
+        if (content != null && !content.isEmpty())
+            try {
+                language = langDetector.detect(content).getLanguage();
+            } catch (Exception ignored) {}
+
+        saveResult(file.getName(), language, creator, creationDate, lastModification, mimeType, content);
     }
 
     private void saveResult(String fileName, String language, String creatorName, Date creationDate,

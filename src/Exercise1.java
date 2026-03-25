@@ -13,10 +13,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -115,13 +112,11 @@ public class Exercise1 {
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
                 parser.parse(inputStream, phoneHandler, metadata);
                 String[] phones = metadata.getValues("phonenumbers");
-                if (phones != null) {
-                    for (String phone : phones) {
-                        results.add(phone);
-                    }
-                }
+                if (phones != null)
+                    Collections.addAll(results, phones);
+
             } catch (Exception e) {
-                // Ignore parsing errors for individual files
+                throw new RuntimeException(e);
             }
         }
 
