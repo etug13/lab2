@@ -8,7 +8,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.langdetect.Lingo24LangDetector;
 import org.apache.tika.langdetect.OptimaizeLangDetector;
+import org.apache.tika.langdetect.TextLangDetector;
+import org.apache.tika.language.detect.LanguageDetector;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
@@ -19,7 +22,7 @@ public class Exercise2
 {
 
     private static final String DATE_FORMAT = "yyyy-MM-dd";
-    private OptimaizeLangDetector langDetector;
+    private LanguageDetector langDetector;
 
     public static void main(String[] args)
     {
@@ -53,7 +56,7 @@ public class Exercise2
 
     private void initLangDetector() throws IOException
     {
-        langDetector = new OptimaizeLangDetector();
+        langDetector = new OptimaizeLangDetector().loadModels();
     }
 
     private void processFile(File file) throws IOException, SAXException, TikaException
